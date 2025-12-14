@@ -27,3 +27,12 @@ class SearchChatsEvent extends ChatsEvent {
 class LoadChatsWithErrorEvent extends ChatsEvent {
   const LoadChatsWithErrorEvent();
 }
+
+class ChatsUpdatedEvent extends ChatsEvent {
+  final List<Map<String, dynamic>> chatsData;
+
+  const ChatsUpdatedEvent(this.chatsData);
+
+  @override
+  List<Object?> get props => [chatsData];
+}

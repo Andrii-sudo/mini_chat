@@ -1,9 +1,11 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'services/firestore_service.dart';
 
 class AuthRepository {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirestoreService _firestoreService = FirestoreService();
 
   User? get currentUser => _firebaseAuth.currentUser;
 
@@ -26,7 +28,11 @@ class AuthRepository {
         idToken: googleAuth.idToken,
       );
 
-      await _firebaseAuth.signInWithCredential(credential);
+      final userCredential = await _firebaseAuth.signInWithCredential(credential);
+
+      if (userCredential.user != null) {
+        await _firestoreService.createOrUpdateUser(userCredential.user!);
+      }
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     } catch (e) {
@@ -47,8 +53,13 @@ class AuthRepository {
 
       if (displayName != null && displayName.isNotEmpty) {
         await userCredential.user?.updateDisplayName(displayName);
+        await userCredential.user?.reload();
       }
 
+      final user = _firebaseAuth.currentUser;
+      if (user != null) {
+        await _firestoreService.createOrUpdateUser(user);
+      }
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     }
@@ -59,16 +70,22 @@ class AuthRepository {
     required String password,
   }) async {
     try {
-      await _firebaseAuth.signInWithEmailAndPassword(
+      final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+
+      if (userCredential.user != null) {
+        await _firestoreService.createOrUpdateUser(userCredential.user!);
+      }
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     }
   }
 
   Future<void> signOut() async {
+    await _firestoreService.updateUserStatus(false);
+
     await Future.wait([
       _firebaseAuth.signOut(),
       _googleSignIn.signOut(),
